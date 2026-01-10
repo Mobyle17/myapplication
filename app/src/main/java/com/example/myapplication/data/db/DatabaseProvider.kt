@@ -9,13 +9,18 @@ object DatabaseProvider {
     @Volatile
     private var INSTANCE: AppDatabase? = null
 
-    fun get(context: Context): AppDatabase {
+    fun getDatabase(context: Context): AppDatabase {
         return INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(
+            val instance = Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
-                "health.db"
-            ).build().also { INSTANCE = it }
+                "myapplication.db"
+            )
+                .fallbackToDestructiveMigration()
+                .build()
+
+            INSTANCE = instance
+            instance
         }
     }
 }
