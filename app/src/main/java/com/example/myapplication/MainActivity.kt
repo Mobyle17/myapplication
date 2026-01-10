@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,7 @@ import com.example.myapplication.data.db.entities.ProductEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -64,7 +66,8 @@ class MainActivity : ComponentActivity() {
                     .getAllProducts()
                     .collectAsState(initial = emptyList())
 
-                var showDialog by remember { mutableStateOf(false) }
+                var showAddDialog by remember { mutableStateOf(false) }
+                var selectedProduct by remember { mutableStateOf<ProductEntity?>(null) }
                 var query by remember { mutableStateOf("") }
                 var sortMode by remember { mutableStateOf(SortMode.NAME) }
 
@@ -85,7 +88,7 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     floatingActionButton = {
-                        FloatingActionButton(onClick = { showDialog = true }) {
+                        FloatingActionButton(onClick = { showAddDialog = true }) {
                             Icon(Icons.Default.Add, contentDescription = "Добавить")
                         }
                     }
@@ -126,16 +129,19 @@ class MainActivity : ComponentActivity() {
                             items(filteredProducts) { product ->
                                 Text(
                                     text = "${product.name} — ${product.caloriesPer100g} ккал / 100г",
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedProduct = product }
+                                        .padding(vertical = 8.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                if (showDialog) {
+                if (showAddDialog) {
                     AddProductDialog(
-                        onDismiss = {  },
+                        onDismiss = {showAddDialog = false },
                         onSave = { name, calories, protein, fat, carbs ->
                             scope.launch {
                                 withContext(Dispatchers.IO) {
@@ -149,9 +155,16 @@ class MainActivity : ComponentActivity() {
                                         )
                                     )
                                 }
-
                             }
                         }
+                    )
+                }
+
+                // ✅ карточка продукта показывается только если selectedProduct != null
+                selectedProduct?.let { product ->
+                    ProductDetailsDialog(
+                        product = product,
+                        onDismiss = { selectedProduct = null }
                     )
                 }
             }
@@ -240,6 +253,32 @@ private fun AddProductDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
+    )
+}
+
+@Composable
+private fun ProductDetailsDialog(
+    product: ProductEntity,
+    onDismiss: () -> Unit
+) {
+    val protein = String.format(Locale.getDefault(), "%.1f", product.proteinPer100g)
+    val fat = String.format(Locale.getDefault(), "%.1f", product.fatPer100g)
+    val carbs = String.format(Locale.getDefault(), "%.1f", product.carbsPer100g)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(product.name) },
+        text = {
+            Column {
+                Text("Калории: ${product.caloriesPer100g} ккал / 100 г")
+                Text("Белки: $protein г / 100 г")
+                Text("Жиры: $fat г / 100 г")
+                Text("Углеводы: $carbs г / 100 г")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Закрыть") }
         }
     )
 }
